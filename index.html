@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NEON TERMINAL v0.9e</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --color-primary: #0f0;
+      --color-primary-dim: #0c3;
+      --color-primary-dark: #083;
+      --color-glow: #0f04;
+      --color-border: #0f03;
+      --color-bg: #000814;
+      --color-text-dim: #0a3;
+    }
+
+    body.amber {
+      --color-primary: #ffaa00;
+      --color-primary-dim: #cc8800;
+      --color-primary-dark: #664400;
+      --color-glow: #ffaa0022;
+      --color-border: #ffaa0033;
+      --color-bg: #140c00;
+      --color-text-dim: #aa7700;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: var(--color-primary);
+      font-family: 'VT323', monospace;
+      font-size: 1.4rem;
+      line-height: 1.45;
+      height: 100vh;
+      overflow: hidden;
+      image-rendering: pixelated;
+    }
+
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        rgba(0,0,0,0.08) 1px,
+        transparent 2px
+      );
+      background-size: 100% 4px;
+      z-index: 9999;
+      opacity: 0.6;
+      mix-blend-mode: multiply;
+    }
+
+    .crt-container {
+      position: relative;
+      height: 100vh;
+      padding: 1rem 2rem;
+      overflow: hidden;
+      background: var(--color-bg);
+      border: 2px solid var(--color-border);
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 0.8rem;
+      border-bottom: 2px solid var(--color-border);
+      margin-bottom: 1.2rem;
+      color: var(--color-primary-dim);
+      font-size: 1.3rem;
+    }
+
+    .blink {
+      animation: blink 1.2s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      gap: 2.5rem;
+      height: calc(100% - 120px);
+    }
+
+    .feed {
+      display: flex;
+      flex-direction: column;
+      gap: 1.8rem;
+      overflow-y: auto;
+      padding-right: 1rem;
+    }
+
+    .feed::-webkit-scrollbar { width: 0.6rem; }
+    .feed::-webkit-scrollbar-track { background: #000; }
+    .feed::-webkit-scrollbar-thumb {
+      background: var(--color-primary-dim);
+      border: 1px solid var(--color-primary);
+    }
+
+    .new-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: 1rem;
+      border: 1px solid var(--color-border);
+      background: rgba(0, 20, 0, 0.3);
+    }
+
+    body.amber .new-entry {
+      background: rgba(40, 20, 0, 0.3);
+    }
+
+    #newPost {
+      background: #000;
+      color: var(--color-primary);
+      border: 1px solid var(--color-border);
+      padding: 0.8rem;
+      font-family: inherit;
+      font-size: 1.35rem;
+      resize: none;
+      outline: none;
+      min-height: 80px;
+    }
+
+    #newPost:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 12px var(--color-glow);
+    }
+
+    #charCount {
+      font-size: 1.2rem;
+      color: var(--color-primary-dim);
+      text-align: right;
+      margin-top: 0.3rem;
+    }
+
+    #charCount.warning {
+      color: #f33;  /* vermelho quando está perto do limite */
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    #publishBtn, #themeToggle, #handleBtn {
+      background: #000;
+      color: var(--color-primary);
+      border: 2px solid var(--color-primary);
+      padding: 0.4rem 1rem;
+      font-family: inherit;
+      font-size: 1.25rem;
+      cursor: pointer;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    #publishBtn:hover, #themeToggle:hover, #handleBtn:hover {
+      background: var(--color-glow);
+    }
+
+    #publishBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--color-primary-dim);
+    }
+
+    .entry {
+      border-left: 4px solid var(--color-primary-dim);
+      padding-left: 1.2rem;
+      padding-top: 0.4rem;
+      padding-bottom: 0.8rem;
+    }
+
+    .entry-meta {
+      color: var(--color-text-dim);
+      font-size: 1.1rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .entry-content {
+      white-space: pre-wrap;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .ctrl-btn {
+      background: #000;
+      color: var(--color-primary-dim);
+      border: 2px solid var(--color-border);
+      padding: 0.8rem;
+      font-family: inherit;
+      font-size: 1.35rem;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .ctrl-btn:hover { background: var(--color-glow); }
+
+    .ctrl-btn.active {
+      background: var(--color-glow);
+      color: var(--color-primary);
+    }
+
+    .terminal-footer {
+      position: absolute;
+      bottom: 1rem;
+      left: 2rem;
+      right: 2rem;
+      text-align: center;
+      color: var(--color-primary-dark);
+      font-size: 1.1rem;
+      border-top: 1px solid var(--color-border);
+      padding-top: 0.6rem;
+    }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.8rem;
+      }
+      .ctrl-btn { flex: 1 1 45%; max-width: 180px; }
+      .controls { flex-direction: column; }
+    }
+  </style>
+</head>
+<body class="green">
+
+  <div class="scanlines"></div>
+
+  <div class="crt-container">
+    <header class="terminal-header">
+      <div class="header-left">
+        <span class="blink">[SYS-STATUS]</span> ONLINE • USER: <span id="currentUser">GUEST_0xFF</span>
+      </div>
+      <div class="header-right">
+        <span id="currentDateTime"></span>   <span class="blink">█</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="feed">
+        <div class="new-entry">
+          <textarea 
+            id="newPost" 
+            placeholder="> JUST SAY IT... (Ctrl + Enter)"
+            rows="3"
+            maxlength="256"></textarea>
+          
+          <div id="charCount">256 restantes</div>
+
+          <div class="controls">
+            <button id="publishBtn">[ SEND IT ]</button>
+            <button id="themeToggle">[ AMBAR MODE ]</button>
+            <button id="handleBtn">[ HANDLE CHANGER ]</button>
+          </div>
+        </div>
+
+        <div class="entries" id="feedEntries"></div>
+      </section>
+
+      <aside class="sidebar">
+        <button class="ctrl-btn active">[ STATUS ]</button>
+        <button class="ctrl-btn">[ LOGS ]</button>
+        <button class="ctrl-btn">[ ARCHIVES ]</button>
+        <button class="ctrl-btn">[ CONFIG ]</button>
+      </aside>
+    </main>
+
+    <footer class="terminal-footer">
+      BREEZE EMULATION v1.0 • 60Hz • MODE: STANDARD
+    </footer>
+  </div>
+
+  <script>
+    // Handle / Nome de utilizador persistente
+    const currentUserEl = document.getElementById('currentUser');
+    let currentHandle = localStorage.getItem('terminalHandle') || 'GUEST_0xFF';
+    currentUserEl.textContent = currentHandle;
+
+    const handleBtn = document.getElementById('handleBtn');
+    handleBtn.addEventListener('click', () => {
+      const novoHandle = prompt('Novo handle / nome de utilizador:', currentHandle);
+      
+      if (novoHandle !== null) {
+        const limpo = novoHandle.trim();
+        if (limpo) {
+          currentHandle = limpo;
+          localStorage.setItem('terminalHandle', currentHandle);
+          currentUserEl.textContent = currentHandle;
+        } else {
+          alert('O handle não pode ficar vazio.');
+        }
+      }
+    });
+
+    // Relógio
+    function updateDateTime() {
+      const now = new Date();
+      const str = now.toLocaleString('pt-BR', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).replace(',', '');
+      document.getElementById('currentDateTime').textContent = str;
+    }
+    setInterval(updateDateTime, 1000);
+    updateDateTime();
+
+    // Contador de caracteres + publicar
+    const textarea = document.getElementById('newPost');
+    const charCount = document.getElementById('charCount');
+    const publishBtn = document.getElementById('publishBtn');
+    const feed = document.getElementById('feedEntries');
+
+    function updateCharCount() {
+      const remaining = 256 - textarea.value.length;
+      charCount.textContent = remaining + ' restantes';
+      
+      if (remaining < 30) {
+        charCount.classList.add('warning');
+      } else {
+        charCount.classList.remove('warning');
+      }
+
+      publishBtn.disabled = (textarea.value.trim() === '');
+    }
+
+    textarea.addEventListener('input', updateCharCount);
+    updateCharCount(); // inicial
+
+    function publish() {
+      const text = textarea.value.trim();
+      if (!text) return;
+
+      const now = new Date();
+      const timeStr = now.toLocaleString('pt-BR', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).replace(',', '');
+
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.innerHTML = `
+        <div class="entry-meta">[${timeStr}]  ${currentHandle}</div>
+        <div class="entry-content">${text.replace(/\n/g, '<br>')}</div>
+      `;
+
+      feed.insertBefore(entry, feed.firstChild);
+      textarea.value = '';
+      updateCharCount();
+      textarea.focus();
+    }
+
+    publishBtn.addEventListener('click', publish);
+
+    textarea.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        publish();
+      }
+    });
+
+    // Toggle tema
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('amber');
+      
+      if (document.body.classList.contains('amber')) {
+        themeToggle.textContent = '[ OG MODE ]';
+      } else {
+        themeToggle.textContent = '[ AMBAR MODE ]';
+      }
+    });
+
+    // Foco inicial
+    textarea.focus();
+  </script>
+</body>
+</html>
